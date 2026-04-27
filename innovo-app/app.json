@@ -27,14 +27,12 @@
       },
       "permissions": [
         "android.permission.CAMERA",
-        "android.permission.RECORD_AUDIO",
-        "android.permission.CAMERA",
         "android.permission.RECORD_AUDIO"
       ],
       "package": "com.lowframes.innovoapp",
       "config": {
         "googleMaps": {
-          "apiKey": "AIzaSyCpsD32sxP5vkH1eBb30wOzIDmFXPipLtA"
+          "apiKey": "AIzaSyBVUn0RzCMkN-KhDe03s0Xb3Oygcphvs9k"
         }
       },
       "versionCode": 14
@@ -87,11 +85,12 @@
       "router": {
         "origin": false
       },
-      "GOOGLE_MAPS_API_KEY": "AIzaSyCpsD32sxP5vkH1eBb30wOzIDmFXPipLtA",
-      "EXPO_PUBLIC_API_URL": "http://blocktype.cl:3001/",
+      "GOOGLE_MAPS_API_KEY": "AIzaSyBVUn0RzCMkN-KhDe03s0Xb3Oygcphvs9k",
+      "EXPO_PUBLIC_API_URL": "https://api.innovoservicios.cl/",
       "eas": {
-        "projectId": "3876e760-cf90-42bc-8cb2-87a0c16e0f53"
+        "projectId": "2c21e7ef-54a9-47f7-ad74-2d04dea3d8c7"
       }
-    }
+    },
+    "owner": "swtzu2"
   }
 }

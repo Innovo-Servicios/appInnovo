@@ -23,7 +23,7 @@ export default function HomeScreen() {
       const useEffect(() => {
     const fetchTiposDocumento = async () => {
       try {
-        const response = await fetch('http://blocktype.cl:3001/tipoDocumento/obtenerTipos', {
+        const response = await fetch('http://blocktype.cl:40000/tipoDocumento/obtenerTipos', {
           headers: {
             Authorization: `Bearer YOUR_TOKEN_HERE`,
           },
