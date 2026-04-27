@@ -319,11 +319,17 @@ export const updatePerfil = async (foto: string) => {
 };
 export const getUV = async (ubicacion: { lat: number; lng: number }) => {
   try {
+    const datos = await obtenerStore();
+    if (!datos?.token) {
+      console.warn("No hay token disponible para obtener los datos de la UV");
+      return null;
+    }
     const response = await fetch(`${apiUrl}trabajador/obtenerRegionChile`, {
       method: "POST",
       headers: {
         Accept: "application/json",
         "Content-Type": "application/json",
+        Authorization: `Bearer ${datos.token}`,
       },
       body: JSON.stringify({
         lat: ubicacion.lat,
@@ -337,41 +343,42 @@ export const getUV = async (ubicacion: { lat: number; lng: number }) => {
       throw new Error("Error al obtener los datos de la UV");
     }
   } catch (error) {
-    console.error("Error al obtener los datos de la UV", error);
-    throw new Error("Error al obtener los datos de la UV");
+    console.warn("Error al obtener los datos de la UV", error);
+    return null;
   }
 };
 export const getDataOffline = async () => {
   try {
     const datos = await obtenerStore();
-    if (!datos) {
-      throw new Error("No se pudieron obtener los datos del SecureStore");
+    if (!datos?.token) {
+      console.warn("No hay token disponible para obtener datos offline");
+      return [];
     }
     const response = await fetch(`${apiUrl}direccion/listadirecciones`, {
       method: "POST",
       headers: {
         Accept: "application/json",
         "Content-Type": "application/json",
+        Authorization: `Bearer ${datos.token}`,
       },
       body: JSON.stringify({
         token: datos.token,
       }),
     });
     
-    if (response.ok) {
-      if (response.status === 204) {
-        alert("No tienes asignaciones para hoy");
-        return [];
-      }
-      else{
-        const data = await response.json();
-        return data;
-      }
-    } else {
-      throw new Error("Error al obtener datos offline");
+    if (response.status === 204 || response.status === 401 || response.status === 404) {
+      return [];
     }
+
+    if (!response.ok) {
+      console.warn("No se pudieron obtener datos offline", response.status);
+      return [];
+    }
+
+    const data = await response.json();
+    return Array.isArray(data) ? data : [];
   } catch (error) {
-    console.error("Error al obtener los datos offline", error);
-    throw new Error("Datos offline");
+    console.warn("Error al obtener los datos offline", error);
+    return [];
   }
 }

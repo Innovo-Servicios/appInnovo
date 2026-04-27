@@ -21,6 +21,7 @@ import * as Location from "expo-location";
 import NetInfo from "@react-native-community/netinfo";
 import DeviceInfo from "react-native-device-info";
 const apiURL = process.env.EXPO_PUBLIC_API_URL;
+const DEFAULT_UV_LOCATION = { lat: -33.015, lng: -71.551 };
 interface AuthContextProps {
   login: (rut: string, password: string) => Promise<void>;
   socket: Socket | null;
@@ -33,7 +34,7 @@ const obtenerUbicacion = async () => {
   const { status } = await Location.requestForegroundPermissionsAsync();
   if (status !== "granted") {
     console.warn("Permiso de ubicación denegado");
-    return;
+    return DEFAULT_UV_LOCATION;
   }
   const location = await Location.getCurrentPositionAsync({});
   const ubicacion = {
@@ -92,13 +93,22 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({
   useEffect(() => {
     console.log("🔆 Iniciando la aplicación...");
     const fetchUVData = async () => {
-      const ubicacion = await obtenerUbicacion();
-      if (!ubicacion) return;
-      const uvData = await getUV(ubicacion);
-      setUvData({indiceUV_h: uvData[0], indiceUV_m: uvData[1]});
+      try {
+        const ubicacion = (await obtenerUbicacion()) ?? DEFAULT_UV_LOCATION;
+        const uvData = await getUV(ubicacion);
+                if (!Array.isArray(uvData)) {
+                  console.warn("Datos UV no disponibles para la ubicación:", ubicacion);
+                  return;
+                }
+        setUvData({ indiceUV_h: uvData[0], indiceUV_m: uvData[1] });
+      } catch (error) {
+        console.warn("Error al obtener los datos de la UV", error);
+        return null;
+      }
     };
+    if (!isAuthenticated) return;
     fetchUVData();
-  }, []);
+  }, [isAuthenticated]);
   useEffect(() => {
     const checkNotificationPermissions = async () => {
       const { status } = await Notifications.getPermissionsAsync();
@@ -198,13 +208,18 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({
       );
       return;
     }
-    const socketInstance = io(apiURL, {
+    console.log("Socket.IO auth token disponible:", {
+      hasToken: Boolean(token),
+      length: token?.length ?? 0,
+    });
+    const socketInstance = io("https://api.innovoservicios.cl", {
       transports: ["websocket"],
       auth: { token },
-      reconnection: true, // Reconexión automática
-      reconnectionAttempts: 10, // Número de intentos de reconexión
-      reconnectionDelay: 3000, // Tiempo entre intentos (en ms)
+      reconnection: true,
+      reconnectionAttempts: 10,
+      reconnectionDelay: 3000,
     });
+
 
     socketInstance.on("connect", async () => {
       console.log("🔗 Conectado a Socket.IO");
@@ -216,13 +231,13 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({
       await trackLocation(socketInstance, token); // Seguimiento con token
     });
     socketInstance.on("disconnect", (reason) => {
-      console.error("Socket.IO desconectado:", reason);
+      console.warn("Socket.IO desconectado:", reason);
     });
     socketInstance.on("reconnect_attempt", () => {
       console.log("Intentando reconectar...");
     });
     socketInstance.on("connect_error", (error) => {
-      console.error("Error al conectar Socket.IO:", error.message);
+      console.warn("Error al conectar Socket.IO:", error.message);
     });
     socketInstance.on("message", (data) => {
       console.log("Mensaje recibido del servidor:", data);
@@ -249,14 +264,14 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({
         return false;
       }
     } catch (error) {
-      console.error("Error al comprobar disponibilidad del servidor:", error);
+      console.warn("Error al comprobar disponibilidad del servidor:", error);
       return false;
     }
   };
   const login = async (rut: string, password: string) => {
     const redStatus = await statusConnection();
     if (!redStatus) {
-      console.error("❌ Sin conexión con el servidor.");
+      console.warn("❌ Sin conexión con el servidor.");
       alert("No hay conexión a Internet.");
       return;
     }

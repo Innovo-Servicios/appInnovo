@@ -65,7 +65,8 @@ export const GlobalProvider: React.FC<{ children: ReactNode }> = ({
       const datos = await getDataOffline();
       setOffLine(datos);
     } catch (error) {
-      console.error("Error al obtener datos offline:", error);
+      console.warn("Error al obtener datos offline:", error);
+      setOffLine([]);
     }
   };
   const updateNovedad = (key: keyof Novedad, value: Novedad[keyof Novedad]) => {
@@ -139,11 +140,9 @@ export const GlobalProvider: React.FC<{ children: ReactNode }> = ({
         );
         setMarkedDates(marked);
       } catch (error) {
-        if (error instanceof Error) {
-          setError(error.message);
-        } else {
-          setError(String(error));
-        }
+        console.warn("Error al obtener las asignaciones:", error);
+        setAsignaciones([]);
+        setMarkedDates({});
       }
     })();
   }, []);
@@ -159,7 +158,8 @@ export const GlobalProvider: React.FC<{ children: ReactNode }> = ({
         const data = await getATE(fecha);
         setDataAte(data);
       } catch (error) {
-        console.error("Error al obtener la ruta:", error);
+        console.warn("Error al obtener la ruta:", error);
+        setDataAte([]);
       }
     };
     fetchRuta();
@@ -223,6 +223,3 @@ export const useGlobalContext = () => {
   }
   return context;
 };
-function setError(message: string) {
-  throw new Error("Function not implemented.");
-}
