@@ -1,5 +1,6 @@
-import React, { useEffect, useMemo } from "react";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
 import {
+  ActivityIndicator,
   Alert,
   FlatList,
   Pressable,
@@ -18,20 +19,89 @@ import {
   Trash2,
 } from "lucide-react-native";
 import { useGlobalContext } from "@/contexts/GlobalContext";
-import type { Notificacion } from "@/types/interfaces";
-import { deleteNotificacion, getNotificaciones, updateStateNotificacion } from "@/api/trabajador";
-import { AppHeader, Badge, Card, EmptyState, IconButton, Screen } from "@/components/ui";
+import type { Notificacion, NotificacionesRange } from "@/types/interfaces";
+import {
+  deleteNotificacion,
+  getNotificacionesPage,
+  updateStateNotificacion,
+} from "@/api/trabajador";
+import { AppButton, AppHeader, Badge, Card, EmptyState, IconButton, Screen } from "@/components/ui";
 import { colors, fontSizes, radius, spacing } from "@/constants/theme";
+
+const PAGE_LIMIT = 20;
+
+const mergeNotifications = (current: Notificacion[], next: Notificacion[]) => {
+  const byId = new Map<string, Notificacion>();
+
+  [...current, ...next].forEach((notification) => {
+    byId.set(String(notification.id), notification);
+  });
+
+  return Array.from(byId.values()).sort(
+    (a, b) => new Date(b.fecha).getTime() - new Date(a.fecha).getTime()
+  );
+};
 
 export default function NotificacionesModal() {
   const { notificaciones, setNotificaciones } = useGlobalContext();
+  const [isInitialLoading, setInitialLoading] = useState(true);
+  const [isLoadingMore, setLoadingMore] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [todayCursor, setTodayCursor] = useState<string | null>(null);
+  const [olderCursor, setOlderCursor] = useState<string | null>(null);
+  const [todayHasMore, setTodayHasMore] = useState(true);
+  const [olderHasMore, setOlderHasMore] = useState(true);
+  const [nextRange, setNextRange] = useState<NotificacionesRange>("today");
+  const [hasLoadedToday, setHasLoadedToday] = useState(false);
+
+  const loadPage = useCallback(
+    async (range: NotificacionesRange, mode: "initial" | "more" = "more") => {
+      const cursor = range === "today" ? todayCursor : olderCursor;
+
+      if (mode === "initial") {
+        setInitialLoading(true);
+      } else {
+        setLoadingMore(true);
+      }
+      setError(null);
+
+      try {
+        const page = await getNotificacionesPage({
+          range,
+          cursor: mode === "initial" ? null : cursor,
+          limit: PAGE_LIMIT,
+        });
+
+        setNotificaciones((current) => mergeNotifications(current, page.items || []));
+
+        if (range === "today") {
+          setHasLoadedToday(true);
+          setTodayCursor(page.nextCursor);
+          setTodayHasMore(page.hasMore);
+          if (!page.hasMore) {
+            setNextRange("older");
+          }
+        } else {
+          setOlderCursor(page.nextCursor);
+          setOlderHasMore(page.hasMore);
+          setNextRange("older");
+        }
+      } catch (loadError) {
+        setError(
+          loadError instanceof Error
+            ? loadError.message
+            : "No se pudieron cargar las notificaciones."
+        );
+      } finally {
+        setInitialLoading(false);
+        setLoadingMore(false);
+      }
+    },
+    [olderCursor, setNotificaciones, todayCursor]
+  );
 
   useEffect(() => {
-    if (notificaciones.length === 0) {
-      getNotificaciones().then((nextNotificaciones) => {
-        setNotificaciones(nextNotificaciones || []);
-      });
-    }
+    loadPage("today", "initial");
   }, []);
 
   const getIconForType = (tipo: string) => {
@@ -87,12 +157,11 @@ export default function NotificacionesModal() {
   const handleNotificationPress = (notification: Notificacion) => {
     updateStateNotificacion(notification.id).then((res) => {
       if (res.ok) {
-        const updatedNotifications = notificaciones.map((notificacion: Notificacion) =>
-          notificacion.id === notification.id
-            ? { ...notificacion, estado: true }
-            : notificacion
+        setNotificaciones((current) =>
+          current.map((item) =>
+            item.id === notification.id ? { ...item, estado: true } : item
+          )
         );
-        setNotificaciones(updatedNotifications);
       } else {
         Alert.alert("Error", "No se pudo actualizar el estado de la notificación.");
       }
@@ -114,10 +183,9 @@ export default function NotificacionesModal() {
           onPress: async () => {
             const res = await deleteNotificacion(id);
             if (res.ok) {
-              const updatedNotifications = notificaciones.filter(
-                (notificacion: Notificacion) => notificacion.id !== id
+              setNotificaciones((current) =>
+                current.filter((notificacion) => notificacion.id !== id)
               );
-              setNotificaciones(updatedNotifications);
             } else {
               Alert.alert("Error", "No se pudo eliminar la notificación.");
             }
@@ -165,6 +233,32 @@ export default function NotificacionesModal() {
     </Pressable>
   );
 
+  const canLoadMore = nextRange === "today" ? todayHasMore : olderHasMore;
+  const loadMoreLabel = nextRange === "today" ? "Cargar más de hoy" : "Cargar anteriores";
+
+  const renderFooter = () => {
+    if (isInitialLoading) {
+      return null;
+    }
+
+    if (!canLoadMore) {
+      return (
+        <Text style={styles.endText}>
+          No hay más notificaciones para cargar.
+        </Text>
+      );
+    }
+
+    return (
+      <AppButton
+        title={loadMoreLabel}
+        variant="secondary"
+        loading={isLoadingMore}
+        onPress={() => loadPage(nextRange)}
+      />
+    );
+  };
+
   return (
     <Screen contentStyle={styles.content}>
       <View style={styles.topRow}>
@@ -180,17 +274,36 @@ export default function NotificacionesModal() {
       <AppHeader
         eyebrow="Bandeja"
         title="Notificaciones"
-        subtitle="Avisos, documentos y mensajes enviados por administración."
+        subtitle="Primero se cargan las de hoy; las antiguas se solicitan bajo demanda."
         icon={<Bell size={24} color={colors.brand} />}
         action={<Badge label={`${notificaciones.length}`} tone={notificaciones.length > 0 ? "brand" : "neutral"} />}
       />
 
-      {groupedNotifications.length > 0 ? (
+      {error ? (
+        <Card compact>
+          <Text style={styles.errorText}>{error}</Text>
+          <AppButton
+            title="Reintentar"
+            variant="secondary"
+            onPress={() => loadPage(nextRange, nextRange === "today" ? "initial" : "more")}
+          />
+        </Card>
+      ) : null}
+
+      {isInitialLoading ? (
+        <Card>
+          <View style={styles.loadingState}>
+            <ActivityIndicator color={colors.brand} />
+            <Text style={styles.loadingText}>Cargando notificaciones de hoy...</Text>
+          </View>
+        </Card>
+      ) : groupedNotifications.length > 0 ? (
         <FlatList
           showsVerticalScrollIndicator={false}
           data={groupedNotifications}
           keyExtractor={(item) => item[0]}
           contentContainerStyle={styles.listContent}
+          ListFooterComponent={renderFooter}
           renderItem={({ item: [title, notifications] }) => (
             <View style={styles.group}>
               <Text style={styles.sectionTitle}>{title}</Text>
@@ -208,9 +321,10 @@ export default function NotificacionesModal() {
         <Card>
           <EmptyState
             icon={<Bell size={24} color={colors.textMuted} />}
-            title="Sin notificaciones"
-            description="Cuando recibas nuevos avisos aparecerán en esta bandeja."
+            title={hasLoadedToday ? "Sin notificaciones de hoy" : "Sin notificaciones"}
+            description="Puedes cargar notificaciones anteriores cuando lo necesites."
           />
+          {renderFooter()}
         </Card>
       )}
     </Screen>
@@ -287,5 +401,29 @@ const styles = StyleSheet.create({
     color: colors.textSubtle,
     fontSize: fontSizes.xs,
     fontWeight: "700",
+  },
+  loadingState: {
+    minHeight: 140,
+    alignItems: "center",
+    justifyContent: "center",
+    gap: spacing.md,
+  },
+  loadingText: {
+    color: colors.textMuted,
+    fontSize: fontSizes.sm,
+    fontWeight: "800",
+  },
+  errorText: {
+    color: colors.danger,
+    fontSize: fontSizes.sm,
+    fontWeight: "800",
+    marginBottom: spacing.md,
+  },
+  endText: {
+    color: colors.textMuted,
+    fontSize: fontSizes.sm,
+    fontWeight: "800",
+    textAlign: "center",
+    paddingVertical: spacing.md,
   },
 });

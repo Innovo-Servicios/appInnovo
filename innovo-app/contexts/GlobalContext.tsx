@@ -7,7 +7,6 @@ import React, {
 } from "react";
 import {
   getTiposNovedad,
-  getNotificaciones,
   getAsignaciones,
   getDataOffline,
   getATE,
@@ -25,13 +24,72 @@ import * as Notifications from "expo-notifications";
 import dayjs from "dayjs";
 import utc from "dayjs/plugin/utc";
 import timezone from "dayjs/plugin/timezone";
+import type { Socket } from "socket.io-client";
 
 dayjs.extend(utc);
 dayjs.extend(timezone);
 
 const GlobalContext = createContext<GlobalContextProps | undefined>(undefined);
-export const GlobalProvider: React.FC<{ children: ReactNode }> = ({
+const getStringValue = (value: unknown): string | null => {
+  if (typeof value === "string") {
+    return value;
+  }
+  if (typeof value === "number" || typeof value === "boolean") {
+    return String(value);
+  }
+  if (value instanceof Date) {
+    return value.toISOString();
+  }
+  return null;
+};
+
+const normalizeIncomingNotification = (
+  payload: Record<string, unknown>,
+  fallback?: { title?: string | null; body?: string | null }
+): Notificacion | null => {
+  const id =
+    getStringValue(payload.id) ||
+    getStringValue(payload._id) ||
+    getStringValue(payload.idNotificacion);
+
+  if (!id) {
+    return null;
+  }
+
+  return {
+    id,
+    tipo: getStringValue(payload.tipo) || "msg",
+    titulo: getStringValue(payload.titulo) || fallback?.title || "Notificación",
+    mensaje: getStringValue(payload.mensaje) || fallback?.body || "",
+    contenido: getStringValue(payload.contenido) || getStringValue(payload.contenidos) || "",
+    fecha: getStringValue(payload.fecha) || new Date().toISOString(),
+    url: getStringValue(payload.url),
+    estado: payload.estado === true || payload.estado === "true",
+  };
+};
+
+const mergeIncomingNotification = (
+  current: Notificacion[],
+  incoming: Notificacion
+) => {
+  const existing = current.find((notification) => notification.id === incoming.id);
+  const mergedItem = existing
+    ? { ...existing, ...incoming, estado: existing.estado || incoming.estado }
+    : incoming;
+  const next = existing
+    ? current.map((notification) =>
+        notification.id === incoming.id ? mergedItem : notification
+      )
+    : [mergedItem, ...current];
+
+  return next.sort(
+    (a, b) => new Date(b.fecha).getTime() - new Date(a.fecha).getTime()
+  );
+};
+
+export const GlobalProvider: React.FC<{ children: ReactNode; socket?: Socket | null }> = ({
   children,
+  socket = null,
 }) => {
   const [offLine, setOffLine] = useState<DataOffline[]>([]);
   const [asignaciones, setAsignaciones] = useState<Asignacion[]>([]);
@@ -88,13 +146,6 @@ export const GlobalProvider: React.FC<{ children: ReactNode }> = ({
       fotoUri: null
     });
   };
-  useEffect(() => {
-    if (notificaciones.length === 0) {
-      getNotificaciones().then((notificaciones) => {
-        setNotificaciones(notificaciones);
-      });
-    }
-  }, [notificaciones]);
   useEffect(() => {
     if (tipoNovedad.length === 0) {
       getTiposNovedad().then((tipos) => {
@@ -167,26 +218,49 @@ export const GlobalProvider: React.FC<{ children: ReactNode }> = ({
   useEffect(() => {
       const notificationListener =
         Notifications.addNotificationReceivedListener((notification) => {
-            const nuevaNotificacion: Notificacion = {
-            id: notification.request.content.data.idNotificacion,
-            tipo: notification.request.content.data.tipo,
-            titulo: notification.request.content.title,
-            mensaje: notification.request.content.body,
-            contenido: notification.request.content.data.contenidos,
-            fecha: notification.request.content.data.fecha,
-            url: notification.request.content.data.url,
-            estado: false,
-            };
-          setNotificaciones((prevNotificaciones) => [
-            nuevaNotificacion,
-            ...prevNotificaciones,
-          ]);
+          const nuevaNotificacion = normalizeIncomingNotification(
+            notification.request.content.data as Record<string, unknown>,
+            {
+              title: notification.request.content.title,
+              body: notification.request.content.body,
+            }
+          );
+
+          if (!nuevaNotificacion) {
+            return;
+          }
+
+          setNotificaciones((prevNotificaciones) =>
+            mergeIncomingNotification(prevNotificaciones, nuevaNotificacion)
+          );
         });
   
       return () => {
         Notifications.removeNotificationSubscription(notificationListener);
       };
     }, []);
+  useEffect(() => {
+    if (!socket) {
+      return;
+    }
+
+    const handleLiveNotification = (payload: Record<string, unknown>) => {
+      const nuevaNotificacion = normalizeIncomingNotification(payload);
+      if (!nuevaNotificacion) {
+        return;
+      }
+
+      setNotificaciones((prevNotificaciones) =>
+        mergeIncomingNotification(prevNotificaciones, nuevaNotificacion)
+      );
+    };
+
+    socket.on("nuevaNotificacion", handleLiveNotification);
+
+    return () => {
+      socket.off("nuevaNotificacion", handleLiveNotification);
+    };
+  }, [socket]);
   return (
     <GlobalContext.Provider
       value={{

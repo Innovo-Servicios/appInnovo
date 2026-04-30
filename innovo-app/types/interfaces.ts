@@ -1,3 +1,5 @@
+import type { Dispatch, SetStateAction } from "react";
+
 export interface Ate {
   id_ate: string | null;
   direccion: string | null;
@@ -20,8 +22,21 @@ export interface Notificacion {
   mensaje: string|null;
   contenido: string|null;
   fecha: string;
-  url: string;
+  url: string | null;
   estado: boolean;
+}
+export type NotificacionesRange = "today" | "older";
+export interface NotificacionesPageRequest {
+  range: NotificacionesRange;
+  cursor?: string | null;
+  limit?: number;
+}
+export interface NotificacionesPageResponse {
+  items: Notificacion[];
+  nextCursor: string | null;
+  hasMore: boolean;
+  range: NotificacionesRange;
+  totalLoaded: number;
 }
 export interface NotificacionSection {
   title: string;           // "Hoy", "Ayer" o la fecha formateada
@@ -84,8 +99,8 @@ export interface GlobalContextProps {
     setNewAte: (ate: Ate) => void;
     tipoNovedad: TipoNovedad[];
     clearAte: () => void;
-    notificaciones: any;
-    setNotificaciones: (notificaciones: any) => void;
+    notificaciones: Notificacion[];
+    setNotificaciones: Dispatch<SetStateAction<Notificacion[]>>;
     asignaciones: Asignacion[];
     markedDates: any;
     calendarSelected: Asignacion | undefined;
@@ -97,4 +112,3 @@ export interface GlobalContextProps {
     photoUri: string | null; 
     setPhotoUri: (uri: string | null) => void;
   }
-  

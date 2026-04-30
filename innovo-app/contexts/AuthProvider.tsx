@@ -381,7 +381,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({
       }}
     >
       <StatusBar hidden />
-      {isAuthenticated ? <GlobalProvider>{children}</GlobalProvider> : children}
+      {isAuthenticated ? <GlobalProvider socket={socket}>{children}</GlobalProvider> : children}
     </AuthContext.Provider>
   );
 };

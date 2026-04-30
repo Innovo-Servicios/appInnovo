@@ -1,5 +1,9 @@
 import * as SecureStore from "expo-secure-store";
-import { Novedad } from "@/types/interfaces";
+import {
+  Novedad,
+  NotificacionesPageRequest,
+  NotificacionesPageResponse,
+} from "@/types/interfaces";
 const apiUrl = process.env.EXPO_PUBLIC_API_URL;
 export async function obtenerStore() {
   try {
@@ -207,6 +211,38 @@ export const getNotificaciones = async () => {
     }
   } catch (error) {
     console.error("Error al obtener las notificaciones", error);
+  }
+};
+export const getNotificacionesPage = async ({
+  range,
+  cursor = null,
+  limit = 20,
+}: NotificacionesPageRequest): Promise<NotificacionesPageResponse> => {
+  try {
+    const datos = await obtenerStore();
+    if (!datos?.token) {
+      throw new Error("No se pudieron obtener los datos del SecureStore");
+    }
+    const response = await fetch(`${apiUrl}notificaciones/getNotiPage`, {
+      method: "POST",
+      headers: {
+        Accept: "application/json",
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        token: datos.token,
+        range,
+        cursor,
+        limit,
+      }),
+    });
+    if (response.ok) {
+      return response.json();
+    }
+    throw new Error(response.statusText);
+  } catch (error) {
+    console.error("Error al obtener las notificaciones paginadas", error);
+    throw error;
   }
 };
 export const getPerfil = async () => {
