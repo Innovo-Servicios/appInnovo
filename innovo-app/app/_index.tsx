@@ -18,15 +18,60 @@ import { colors, fontSizes, radius, shadows, spacing } from "@/constants/theme";
 
 NavigationBar.setVisibilityAsync("hidden");
 
+const sanitizeRutInput = (value: string) =>
+  value.replace(/[^0-9kK]/g, "").toUpperCase().slice(0, 9);
+
+const normalizeRut = (value: string) =>
+  value.replace(/[^0-9kK]/g, "").toUpperCase();
+
+const isValidChileanRut = (value: string) => {
+  const normalizedRut = normalizeRut(value);
+  const body = normalizedRut.slice(0, -1);
+  const checkDigit = normalizedRut.slice(-1);
+
+  if (!/^\d{1,8}$/.test(body) || !/^[0-9K]$/.test(checkDigit)) {
+    return false;
+  }
+
+  let multiplier = 2;
+  const sum = [...body].reverse().reduce((acc, digit) => {
+    const next = acc + Number(digit) * multiplier;
+    multiplier = multiplier === 7 ? 2 : multiplier + 1;
+    return next;
+  }, 0);
+
+  const remainder = 11 - (sum % 11);
+  const expectedDigit =
+    remainder === 11 ? "0" : remainder === 10 ? "K" : String(remainder);
+
+  return expectedDigit === checkDigit;
+};
+
 export default function IndexScreen() {
   const { login, isAuthenticated } = useAuth();
   const [rut, setRut] = useState("");
+  const [rutError, setRutError] = useState<string | null>(null);
   const [password, setPassword] = useState("");
   const [isSubmitting, setSubmitting] = useState(false);
+
+  const handleRutChange = (text: string) => {
+    const sanitizedRut = sanitizeRutInput(text);
+    const formattedRut = formatRut(sanitizedRut);
+
+    setRut(formattedRut);
+    if (rutError) {
+      setRutError(null);
+    }
+  };
 
   const handleLogin = async () => {
     if (!rut || !password) {
       alert("Por favor, complete todos los campos.");
+      return;
+    }
+
+    if (!isValidChileanRut(rut)) {
+      setRutError("Ingresa un RUT chileno válido, con dígito verificador.");
       return;
     }
 
@@ -80,12 +125,12 @@ export default function IndexScreen() {
             label="RUT"
             placeholder="12.345.678-9"
             leftIcon={<UserRound size={18} color={colors.textMuted} />}
-            inputMode="numeric"
             keyboardType="default"
-            autoCapitalize="none"
+            autoCapitalize="characters"
             value={rut}
-            onChangeText={(text) => setRut(formatRut(text))}
+            onChangeText={handleRutChange}
             maxLength={12}
+            helper={rutError || "Formato chileno: 12.345.678-9 o 12.345.678-K"}
           />
 
           <Field

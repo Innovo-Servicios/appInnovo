@@ -27,7 +27,8 @@
       },
       "permissions": [
         "android.permission.CAMERA",
-        "android.permission.RECORD_AUDIO"
+        "android.permission.RECORD_AUDIO",
+        "android.permission.POST_NOTIFICATIONS"
       ],
       "package": "com.lowframes.innovoapp",
       "config": {
@@ -35,7 +36,7 @@
           "apiKey": "AIzaSyBVUn0RzCMkN-KhDe03s0Xb3Oygcphvs9k"
         }
       },
-      "versionCode": 15
+      "versionCode": 17
     },
     "web": {
       "bundler": "metro",

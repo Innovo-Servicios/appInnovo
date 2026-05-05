@@ -25,11 +25,14 @@ import dayjs from "dayjs";
 import utc from "dayjs/plugin/utc";
 import timezone from "dayjs/plugin/timezone";
 import type { Socket } from "socket.io-client";
+import { presentLocalNotification } from "@/utils/notifications";
 
 dayjs.extend(utc);
 dayjs.extend(timezone);
 
 const GlobalContext = createContext<GlobalContextProps | undefined>(undefined);
+const locallyPresentedNotificationIds = new Set<string>();
+
 const getStringValue = (value: unknown): string | null => {
   if (typeof value === "string") {
     return value;
@@ -253,6 +256,14 @@ export const GlobalProvider: React.FC<{ children: ReactNode; socket?: Socket | n
       setNotificaciones((prevNotificaciones) =>
         mergeIncomingNotification(prevNotificaciones, nuevaNotificacion)
       );
+
+      if (!locallyPresentedNotificationIds.has(nuevaNotificacion.id)) {
+        locallyPresentedNotificationIds.add(nuevaNotificacion.id);
+        presentLocalNotification(nuevaNotificacion).catch((error) => {
+          console.warn("No se pudo mostrar la notificación local:", error);
+          locallyPresentedNotificationIds.delete(nuevaNotificacion.id);
+        });
+      }
     };
 
     socket.on("nuevaNotificacion", handleLiveNotification);

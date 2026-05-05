@@ -17,6 +17,27 @@ import { colors, fontSizes, radius, spacing } from "@/constants/theme";
 
 const apiUrl = process.env.EXPO_PUBLIC_API_URL;
 
+const buildAuthenticatedAssetUrl = (
+  assetUrl?: string | null,
+  accessToken?: string | null
+) => {
+  if (!assetUrl) {
+    return "";
+  }
+
+  const cleanAssetUrl = assetUrl.trim();
+  const normalizedUrl = /^https?:\/\//i.test(cleanAssetUrl)
+    ? cleanAssetUrl
+    : `${(apiUrl ?? "").replace(/\/+$/, "")}/${cleanAssetUrl.replace(/^\/+/, "")}`;
+
+  if (!accessToken) {
+    return normalizedUrl;
+  }
+
+  const separator = normalizedUrl.includes("?") ? "&" : "?";
+  return `${normalizedUrl}${separator}access_token=${encodeURIComponent(accessToken)}`;
+};
+
 const parseNotification = (notification?: string | string[]) => {
   const raw = Array.isArray(notification) ? notification[0] : notification;
   if (!raw) return null;
@@ -46,9 +67,10 @@ const ModalNotificacion = () => {
       .catch(() => setAccessToken(""));
   }, []);
 
-  const notificationAssetUrl = `${apiUrl}${selectedNotification?.url ?? ""}${
-    accessToken ? `?access_token=${encodeURIComponent(accessToken)}` : ""
-  }`;
+  const notificationAssetUrl = buildAuthenticatedAssetUrl(
+    selectedNotification?.url,
+    accessToken
+  );
 
   const handleOpenURL = (url: string) => {
     Alert.alert(
@@ -138,7 +160,7 @@ const ModalNotificacion = () => {
                 Alert.alert("Sesión expirada", "Vuelve a iniciar sesión para abrir el documento.");
                 return;
               }
-              handleOpenURL(`${apiUrl}${selectedNotification.url}?access_token=${encodeURIComponent(token)}`);
+              handleOpenURL(buildAuthenticatedAssetUrl(selectedNotification.url, token));
             }}
           />
         ) : null}

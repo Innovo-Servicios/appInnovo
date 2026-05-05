@@ -20,6 +20,10 @@ import * as Notifications from "expo-notifications";
 import * as Location from "expo-location";
 import NetInfo from "@react-native-community/netinfo";
 import DeviceInfo from "react-native-device-info";
+import {
+  ensureNotificationPermission,
+  getExpoPushToken,
+} from "@/utils/notifications";
 const apiURL = process.env.EXPO_PUBLIC_API_URL;
 const DEFAULT_UV_LOCATION = { lat: -33.015, lng: -71.551 };
 interface AuthContextProps {
@@ -110,13 +114,9 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({
   }, [isAuthenticated]);
   useEffect(() => {
     const checkNotificationPermissions = async () => {
-      const { status } = await Notifications.getPermissionsAsync();
-      if (status !== "granted") {
-        const { status: newStatus } =
-          await Notifications.requestPermissionsAsync();
-        if (newStatus !== "granted") {
-          console.warn("Permisos de notificaciones denegados");
-        }
+      const hasPermission = await ensureNotificationPermission(true);
+      if (!hasPermission) {
+        console.warn("Permisos de notificaciones denegados");
       }
     };
     checkNotificationPermissions();
@@ -275,7 +275,11 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({
       return;
     }
     try {
-      const pushToken = (await Notifications.getExpoPushTokenAsync()).data; // Obtener el token push más reciente
+      const hasPermission = await ensureNotificationPermission(true);
+      if (!hasPermission) {
+        return;
+      }
+      const pushToken = await getExpoPushToken(); // Obtener el token push más reciente
       const deviceID = await DeviceInfo.getUniqueId(); // Obtener el ID único del dispositivo
       if (
         !deviceID ||
@@ -321,17 +325,8 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({
     if (token) {
       setIsAuthenticated(true);
       if (!socket) connectSocket(token);
-      const { status } = await Notifications.getPermissionsAsync();
-      if (status !== "granted") {
-        const { status: newStatus } =
-          await Notifications.requestPermissionsAsync();
-        if (newStatus !== "granted") {
-          alert(
-            "Permisos de notificaciones denegados, no podrás recibir notificaciones."
-          );
-        }
-      }
-      const pushToken = (await Notifications.getExpoPushTokenAsync()).data;
+      const hasPermission = await ensureNotificationPermission(true);
+      const pushToken = hasPermission ? await getExpoPushToken() : null;
       if (pushToken) {
         await fetch(`${apiURL}trabajador/updatePushToken`, {
           method: "POST",

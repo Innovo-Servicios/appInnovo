@@ -154,40 +154,62 @@ export default function NotificacionesModal() {
     });
   }, [notificaciones]);
 
-  const handleNotificationPress = (notification: Notificacion) => {
-    updateStateNotificacion(notification.id).then((res) => {
-      if (res.ok) {
+  const handleNotificationPress = async (notification: Notificacion) => {
+    let selectedNotification = notification;
+
+    if (!notification.estado) {
+      try {
+        const res = await updateStateNotificacion(notification.id);
+        if (!res.ok) {
+          Alert.alert("Error", "No se pudo registrar la lectura de la notificación.");
+          return;
+        }
+
+        selectedNotification = { ...notification, estado: true };
         setNotificaciones((current) =>
           current.map((item) =>
-            item.id === notification.id ? { ...item, estado: true } : item
+            item.id === notification.id ? selectedNotification : item
           )
         );
-      } else {
-        Alert.alert("Error", "No se pudo actualizar el estado de la notificación.");
+      } catch {
+        Alert.alert("Error", "No se pudo registrar la lectura de la notificación.");
+        return;
       }
-    });
+    }
+
     router.push({
       pathname: "/(lector)/modalNotificacion",
-      params: { notification: JSON.stringify(notification) },
+      params: { notification: JSON.stringify(selectedNotification) },
     });
   };
 
-  const handleDeleteNotification = (id: string) => {
+  const handleDeleteNotification = (notification: Notificacion) => {
+    if (!notification.estado) {
+      Alert.alert(
+        "Lectura requerida",
+        "Debes abrir y leer la notificación antes de poder eliminarla."
+      );
+      return;
+    }
+
     Alert.alert(
       "Eliminar notificación",
-      "Al eliminar la notificación aceptas la responsabilidad sobre su contenido. Esta acción no se puede deshacer.",
+      "La notificación se ocultará de tu bandeja, pero seguirá disponible para auditoría.",
       [
         { text: "Cancelar", style: "cancel" },
         {
           text: "Eliminar",
           onPress: async () => {
-            const res = await deleteNotificacion(id);
+            const res = await deleteNotificacion(notification.id);
             if (res.ok) {
               setNotificaciones((current) =>
-                current.filter((notificacion) => notificacion.id !== id)
+                current.filter((notificacion) => notificacion.id !== notification.id)
               );
             } else {
-              Alert.alert("Error", "No se pudo eliminar la notificación.");
+              const message = res.status === 409
+                ? "Debes leer la notificación antes de eliminarla."
+                : "No se pudo eliminar la notificación.";
+              Alert.alert("Error", message);
             }
           },
           style: "destructive",
@@ -224,11 +246,11 @@ export default function NotificacionesModal() {
         </Text>
       </View>
       <IconButton
-        label="Eliminar notificación"
-        variant="danger"
+        label={item.estado ? "Eliminar notificación" : "Debe leer antes de eliminar"}
+        variant={item.estado ? "danger" : "soft"}
         size={38}
-        icon={<Trash2 size={18} color={colors.danger} />}
-        onPress={() => handleDeleteNotification(item.id)}
+        icon={<Trash2 size={18} color={item.estado ? colors.danger : colors.textSubtle} />}
+        onPress={() => handleDeleteNotification(item)}
       />
     </Pressable>
   );
