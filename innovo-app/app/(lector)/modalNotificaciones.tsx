@@ -117,6 +117,43 @@ export default function NotificacionesModal() {
     }
   };
 
+  const getValidationLabel = (item: Notificacion) => {
+    if (!item.validacion?.required) {
+      return null;
+    }
+
+    switch (item.validacion.estado) {
+      case "aceptado":
+        return "Aceptado";
+      case "firmado":
+        return "Firmado";
+      case "vencido":
+        return "Vencido";
+      case "bloqueado":
+        return "Bloqueado";
+      default:
+        return "Firma pendiente";
+    }
+  };
+
+  const getValidationStyle = (item: Notificacion) => {
+    if (!item.validacion?.required) {
+      return styles.validationNeutral;
+    }
+
+    switch (item.validacion.estado) {
+      case "aceptado":
+        return styles.validationSuccess;
+      case "firmado":
+        return styles.validationWarning;
+      case "vencido":
+      case "bloqueado":
+        return styles.validationDanger;
+      default:
+        return styles.validationNeutral;
+    }
+  };
+
   const groupedNotifications = useMemo(() => {
     const groups: { [key: string]: Notificacion[] } = {};
     const today = new Date();
@@ -238,6 +275,11 @@ export default function NotificacionesModal() {
         <Text style={styles.notificationDescription} numberOfLines={2} ellipsizeMode="tail">
           {item.mensaje}
         </Text>
+        {getValidationLabel(item) ? (
+          <Text style={[styles.validationBadge, getValidationStyle(item)]}>
+            {getValidationLabel(item)}
+          </Text>
+        ) : null}
         <Text style={styles.notificationTime}>
           {new Date(item.fecha).toLocaleTimeString("es-CL", {
             hour: "2-digit",
@@ -418,6 +460,31 @@ const styles = StyleSheet.create({
     color: colors.textMuted,
     fontSize: fontSizes.sm,
     lineHeight: 19,
+  },
+  validationBadge: {
+    alignSelf: "flex-start",
+    borderRadius: radius.pill,
+    overflow: "hidden",
+    paddingHorizontal: spacing.sm,
+    paddingVertical: spacing.xs,
+    fontSize: fontSizes.xs,
+    fontWeight: "900",
+  },
+  validationNeutral: {
+    backgroundColor: colors.brandSoft,
+    color: colors.brand,
+  },
+  validationSuccess: {
+    backgroundColor: colors.successSoft,
+    color: colors.success,
+  },
+  validationWarning: {
+    backgroundColor: colors.warningSoft,
+    color: colors.warning,
+  },
+  validationDanger: {
+    backgroundColor: colors.dangerSoft,
+    color: colors.danger,
   },
   notificationTime: {
     color: colors.textSubtle,

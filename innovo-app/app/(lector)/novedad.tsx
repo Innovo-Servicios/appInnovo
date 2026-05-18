@@ -4,6 +4,7 @@ import {
   Keyboard,
   Platform,
   StyleSheet,
+  Switch,
   Text,
   TouchableWithoutFeedback,
   View,
@@ -30,10 +31,17 @@ import { AppButton, AppHeader, Badge, Card, Field, IconButton, Screen } from "@/
 import { colors, fontSizes, radius, spacing } from "@/constants/theme";
 
 const MULTI_PHOTO_TYPE = "67ac4d7e13432b2cbf379597";
-const NO_READING_TYPE = "678ef5f4501063e29023da47";
+const ATE_READING_LABEL = "Atención Especial-Lectura";
 
 const onlyStrings = (items: Array<string | null | undefined>) =>
   items.filter((item): item is string => Boolean(item));
+
+const normalizeFormType = (value?: string | null) =>
+  String(value || "")
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .trim()
+    .toLowerCase();
 
 export default function Novedad() {
   const {
@@ -74,6 +82,7 @@ export default function Novedad() {
   );
   const [wasConnected, setWasConnected] = useState<boolean | null>(false);
   const [valueLectura, setValueLectura] = useState<number | null>(null);
+  const [sinLectura, setSinLectura] = useState(false);
   const [valueComentario, setValueComentario] = useState<string | null>(null);
   const [valueMedidor, setValueMedidor] = useState(
     newAte.numeroMedidor ? newAte.numeroMedidor.toString() : null
@@ -85,7 +94,17 @@ export default function Novedad() {
     filteredItems.find((item) => item.value === valueTipoNovedad)?.label ||
     newAte.tipo ||
     null;
+  const isAteReading = isAteMode && normalizeFormType(newAte.tipo || selectedLabel) === normalizeFormType(ATE_READING_LABEL);
+  const effectiveLectura = isAteReading && sinLectura ? null : valueLectura;
+  const ateLecturaCorrecta = isAteReading ? effectiveLectura : null;
   const isWeb = Platform.OS === "web";
+
+  const handleSinLecturaChange = (checked: boolean) => {
+    setSinLectura(checked);
+    if (checked) {
+      setValueLectura(null);
+    }
+  };
 
   const openCamera = async () => {
     if (isWeb) {
@@ -94,7 +113,7 @@ export default function Novedad() {
         numeroMedidor: Number(valueMedidor),
         direccion: valueDireccion,
         tipoNovedad: valueTipoNovedad,
-        lectura: valueLectura,
+        lectura: effectiveLectura,
         comentario: valueComentario,
         foto: onlyStrings([photoUri]),
       });
@@ -115,7 +134,7 @@ export default function Novedad() {
       numeroMedidor: Number(valueMedidor),
       direccion: valueDireccion,
       tipoNovedad: valueTipoNovedad,
-      lectura: valueLectura,
+      lectura: effectiveLectura,
       comentario: valueComentario,
       foto: onlyStrings([photoUri]),
     });
@@ -133,7 +152,7 @@ export default function Novedad() {
       numeroMedidor: Number(valueMedidor),
       tipoNovedad: selectedLabel,
       comentario: valueComentario,
-      lectura: valueLectura || null,
+      lectura: effectiveLectura ?? null,
       foto: isMultiPhoto ? photoArray : onlyStrings([photoUri]),
     };
     const netInfo = await NetInfo.fetch();
@@ -150,7 +169,13 @@ export default function Novedad() {
       }
 
       if (netInfo.isConnected) {
-        sendAte(newAte.id_ate, newAte.tipo, payload.foto ? payload.foto.join(",") : null)
+        sendAte(
+          newAte.id_ate,
+          newAte.tipo,
+          payload.foto ? payload.foto.join(",") : null,
+          valueComentario,
+          ateLecturaCorrecta
+        )
           .then(() => {
             Alert.alert("Éxito", "ATE enviada correctamente.");
             setDataAte(dataAte.filter((ate) => ate.id_ate !== newAte.id_ate));
@@ -160,7 +185,13 @@ export default function Novedad() {
             Alert.alert("Error", error.message);
           });
       } else {
-        SaveAteOffline(newAte.id_ate, newAte.tipo, payload.foto ? payload.foto.join(",") : null);
+        SaveAteOffline(
+          newAte.id_ate,
+          newAte.tipo,
+          payload.foto ? payload.foto.join(",") : null,
+          valueComentario,
+          ateLecturaCorrecta
+        );
       }
       return;
     }
@@ -190,6 +221,7 @@ export default function Novedad() {
     setValueDireccion(null);
     setValueTipoNovedad(null);
     setValueLectura(null);
+    setSinLectura(false);
     setValueComentario(null);
     setPhotoUri(null);
     setPhotoArray([]);
@@ -250,7 +282,9 @@ export default function Novedad() {
   const SaveAteOffline = async (
     idAte: string | null,
     tipo: string | null,
-    fotoUri: string | null
+    fotoUri: string | null,
+    comentario?: string | null,
+    lecturaCorrecta?: number | null
   ) => {
     try {
       const storedAte = await SecureStore.getItemAsync("pendingAte");
@@ -263,7 +297,13 @@ export default function Novedad() {
         return;
       }
 
-      ateArray.push({ id_ate: idAte, tipo, fotoUri });
+      ateArray.push({
+        id_ate: idAte,
+        tipo,
+        fotoUri,
+        comentarioTrabajador: comentario ?? null,
+        Lecturacorrecta: lecturaCorrecta ?? null,
+      });
       await SecureStore.setItemAsync("pendingAte", JSON.stringify(ateArray));
       Alert.alert("Guardada sin conexión", "La ATE quedó pendiente de sincronización.");
       handlerClean();
@@ -320,7 +360,13 @@ export default function Novedad() {
             const atePendientes: Ate[] = [];
             ateArray.forEach(async (ateItem: Ate) => {
               try {
-                await sendAte(ateItem.id_ate, ateItem.tipo, ateItem.fotoUri);
+                await sendAte(
+                  ateItem.id_ate,
+                  ateItem.tipo,
+                  ateItem.fotoUri,
+                  ateItem.comentarioTrabajador,
+                  ateItem.Lecturacorrecta
+                );
               } catch (error) {
                 console.error("Error al enviar la ATE:", error);
                 atePendientes.push(ateItem);
@@ -362,6 +408,16 @@ export default function Novedad() {
       setValueTipoNovedad(itemsTipo.find((item) => item.label === newAte.tipo)?.value || null);
     }
   }, [newAte, itemsTipo]);
+
+  useEffect(() => {
+    setSinLectura(false);
+  }, [newAte.id_ate, newAte.tipo]);
+
+  useEffect(() => {
+    if (!isAteReading) {
+      setSinLectura(false);
+    }
+  }, [isAteReading]);
 
   useEffect(() => {
     setItemsTipo(tipoNovedad.map((item) => ({ label: item.value, value: item._id })));
@@ -450,7 +506,7 @@ export default function Novedad() {
                   keyboardType="numeric"
                   maxLength={5}
                   onChangeText={(text) => setValueLectura(text ? Number(text) : null)}
-                  value={valueLectura ? valueLectura.toString() : ""}
+                  value={valueLectura !== null ? valueLectura.toString() : ""}
                 />
               </>
             ) : (
@@ -464,15 +520,29 @@ export default function Novedad() {
                   onChangeText={setValueComentario}
                   value={valueComentario || ""}
                 />
-                {valueTipoNovedad !== NO_READING_TYPE ? (
-                  <Field
-                    label="Lectura correcta"
-                    placeholder="Ingrese lectura correcta"
-                    keyboardType="numeric"
-                    maxLength={5}
-                    onChangeText={(text) => setValueLectura(text ? Number(text) : null)}
-                    value={valueLectura ? valueLectura.toString() : ""}
-                  />
+                {isAteReading ? (
+                  <>
+                    <View style={styles.noReadingRow}>
+                      <Text style={styles.noReadingText}>Sin Lectura</Text>
+                      <Switch
+                        value={sinLectura}
+                        onValueChange={handleSinLecturaChange}
+                        trackColor={{ false: colors.border, true: colors.brand }}
+                        thumbColor={colors.white}
+                        ios_backgroundColor={colors.border}
+                      />
+                    </View>
+                    <Field
+                      label="Lectura correcta"
+                      placeholder="Ingrese lectura correcta"
+                      keyboardType="numeric"
+                      maxLength={5}
+                      onChangeText={(text) => setValueLectura(text ? Number(text) : null)}
+                      value={valueLectura !== null ? valueLectura.toString() : ""}
+                      editable={!sinLectura}
+                      style={sinLectura ? styles.noReadingInputDisabled : null}
+                    />
+                  </>
                 ) : null}
               </>
             )}
@@ -612,6 +682,28 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     gap: spacing.sm,
+  },
+  noReadingRow: {
+    minHeight: 52,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: spacing.md,
+    borderRadius: radius.lg,
+    borderWidth: 1,
+    borderColor: colors.border,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
+  },
+  noReadingText: {
+    color: colors.text,
+    fontSize: fontSizes.md,
+    fontWeight: "800",
+  },
+  noReadingInputDisabled: {
+    backgroundColor: colors.surfaceMuted,
+    borderColor: colors.border,
+    color: colors.text,
   },
   fileBox: {
     flex: 1,

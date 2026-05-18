@@ -6,6 +6,9 @@
     "name": "innovo-app",
     "slug": "innovo-app",
     "version": "1.0.0",
+    "runtimeVersion": {
+      "policy": "appVersion"
+    },
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
     "scheme": "myapp",
@@ -15,6 +18,11 @@
       "image": "./assets/images/splash-icon.png",
       "resizeMode": "contain",
       "backgroundColor": "#ffffff"
+    },
+    "updates": {
+      "url": "https://u.expo.dev/2c21e7ef-54a9-47f7-ad74-2d04dea3d8c7",
+      "checkAutomatically": "ON_LOAD",
+      "fallbackToCacheTimeout": 0
     },
     "ios": {
       "supportsTablet": true
@@ -36,7 +44,7 @@
           "apiKey": "AIzaSyBVUn0RzCMkN-KhDe03s0Xb3Oygcphvs9k"
         }
       },
-      "versionCode": 17
+      "versionCode": 23
     },
     "web": {
       "bundler": "metro",

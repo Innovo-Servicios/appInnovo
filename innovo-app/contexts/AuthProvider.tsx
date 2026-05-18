@@ -29,6 +29,7 @@ const DEFAULT_UV_LOCATION = { lat: -33.015, lng: -71.551 };
 const WEB_DEVICE_ID_KEY = "innovo-web-device-id";
 interface AuthContextProps {
   login: (rut: string, password: string) => Promise<void>;
+  logout: () => Promise<void>;
   socket: Socket | null;
   isAuthenticated: boolean;
   obtenerUbicacion: () => Promise<{ lat: number; lng: number } | undefined>;
@@ -342,6 +343,25 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({
       console.error("Error al iniciar sesión:", error);
     }
   };
+  const logout = async () => {
+    try {
+      if (locationSubscription) {
+        locationSubscription.remove();
+        locationSubscription = null;
+      }
+      isTracking = false;
+
+      socket?.disconnect();
+      setSocket(null);
+      await SecureStore.deleteItemAsync("token");
+      await SecureStore.deleteItemAsync("refreshToken");
+      setIsAuthenticated(false);
+      router.replace("/_index");
+    } catch (error) {
+      console.error("Error al cerrar sesión:", error);
+      Alert.alert("Error", "No se pudo cerrar la sesión.");
+    }
+  };
   const checkToken = async () => {
     const redStatus = await statusConnection();
     if (!redStatus) return;
@@ -402,6 +422,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({
     <AuthContext.Provider
       value={{
         login,
+        logout,
         socket,
         isAuthenticated,
         obtenerUbicacion,
@@ -410,7 +431,9 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({
       }}
     >
       <StatusBar hidden />
-      {isAuthenticated ? <GlobalProvider socket={socket}>{children}</GlobalProvider> : children}
+      <GlobalProvider socket={socket} enabled={isAuthenticated}>
+        {children}
+      </GlobalProvider>
     </AuthContext.Provider>
   );
 };

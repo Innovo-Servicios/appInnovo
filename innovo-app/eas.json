@@ -1,11 +1,13 @@
 {
   "cli": {
-    "version": ">= 10.2.2"
+    "version": ">= 10.2.2",
+    "appVersionSource": "local"
   },
   "build": {
     "development": {
       "developmentClient": true,
       "distribution": "internal",
+      "channel": "development",
       "env": {
         "GOOGLE_MAPS_API_KEY": "AIzaSyBVUn0RzCMkN-KhDe03s0Xb3Oygcphvs9k",
         "EXPO_PUBLIC_API_URL": "https://api.innovoservicios.cl/"
@@ -16,6 +18,7 @@
       }
     },
     "environment": {
+      "channel": "environment",
       "env": {
         "GOOGLE_MAPS_API_KEY": "AIzaSyBVUn0RzCMkN-KhDe03s0Xb3Oygcphvs9k",
         "EXPO_PUBLIC_API_URL": "https://api.innovoservicios.cl/"
@@ -27,6 +30,7 @@
     },
     "beta": {
       "distribution": "internal",
+      "channel": "beta",
       "env": {
         "GOOGLE_MAPS_API_KEY": "AIzaSyBVUn0RzCMkN-KhDe03s0Xb3Oygcphvs9k",
         "EXPO_PUBLIC_API_URL": "https://api.innovoservicios.cl/"
@@ -40,6 +44,7 @@
     "production": {
       "node": "22.13.0",
       "distribution": "store",
+      "channel": "production",
       "env": {
         "GOOGLE_MAPS_API_KEY": "AIzaSyBVUn0RzCMkN-KhDe03s0Xb3Oygcphvs9k",
         "EXPO_PUBLIC_API_URL": "https://api.innovoservicios.cl/"

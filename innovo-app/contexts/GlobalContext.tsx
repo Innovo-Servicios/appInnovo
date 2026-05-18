@@ -90,9 +90,14 @@ const mergeIncomingNotification = (
   );
 };
 
-export const GlobalProvider: React.FC<{ children: ReactNode; socket?: Socket | null }> = ({
+export const GlobalProvider: React.FC<{
+  children: ReactNode;
+  socket?: Socket | null;
+  enabled?: boolean;
+}> = ({
   children,
   socket = null,
+  enabled = true,
 }) => {
   const [offLine, setOffLine] = useState<DataOffline[]>([]);
   const [asignaciones, setAsignaciones] = useState<Asignacion[]>([]);
@@ -150,6 +155,10 @@ export const GlobalProvider: React.FC<{ children: ReactNode; socket?: Socket | n
     });
   };
   useEffect(() => {
+    if (!enabled) {
+      return;
+    }
+
     if (tipoNovedad.length === 0) {
       getTiposNovedad().then((tipos) => {
         setTipoNovedad(tipos);
@@ -161,8 +170,12 @@ export const GlobalProvider: React.FC<{ children: ReactNode; socket?: Socket | n
         );
       });
     }
-  }, [tipoNovedad]);
+  }, [enabled, tipoNovedad]);
   useEffect(() => {
+    if (!enabled) {
+      return;
+    }
+
     (async () => {
       try {
         const asignaciones = await getAsignaciones();
@@ -199,12 +212,20 @@ export const GlobalProvider: React.FC<{ children: ReactNode; socket?: Socket | n
         setMarkedDates({});
       }
     })();
-  }, []);
+  }, [enabled]);
   useEffect(() => {
+    if (!enabled) {
+      return;
+    }
+
     obtenerDatosOffline();
-  }, []);
+  }, [enabled]);
 
   useEffect(() => {
+    if (!enabled) {
+      return;
+    }
+
     // Obtener datos de la API
     const fecha = dayjs().toString();
     const fetchRuta = async () => {
@@ -217,8 +238,12 @@ export const GlobalProvider: React.FC<{ children: ReactNode; socket?: Socket | n
       }
     };
     fetchRuta();
-  }, []);
+  }, [enabled]);
   useEffect(() => {
+      if (!enabled) {
+        return;
+      }
+
       const notificationListener =
         Notifications.addNotificationReceivedListener((notification) => {
           const nuevaNotificacion = normalizeIncomingNotification(
@@ -241,7 +266,7 @@ export const GlobalProvider: React.FC<{ children: ReactNode; socket?: Socket | n
       return () => {
         Notifications.removeNotificationSubscription(notificationListener);
       };
-    }, []);
+    }, [enabled]);
   useEffect(() => {
     if (!socket) {
       return;

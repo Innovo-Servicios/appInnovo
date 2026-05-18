@@ -147,7 +147,9 @@ export const sendNovedad = async (novedad: Novedad, _id:string) => {
 export const sendAte = async (
   id_ate: string | null,
   tipo: string | null,
-  fotoUri: string | null
+  fotoUri: string | null,
+  comentario?: string | null,
+  lecturaCorrecta?: number | null
 ) => {
   if (!id_ate || !fotoUri || !tipo) {
     throw new Error("ID de ATE, tipo o foto no válidos");
@@ -167,6 +169,8 @@ export const sendAte = async (
     formData.append("token", datos.token);
     formData.append("id_ate", id_ate);
     formData.append("tipo", tipo);
+    if (comentario) formData.append("comentario", comentario);
+    formData.append("Lecturacorrecta", lecturaCorrecta === null || lecturaCorrecta === undefined ? "" : lecturaCorrecta.toString());
     // Enviar al backend
     const response = await fetch(`${apiUrl}middleware/repsuestaATE`, {
       method: "POST",
@@ -323,6 +327,67 @@ export const updateStateNotificacion = async (id: string) => {
   } catch (error) {
     console.error("Error al registrar", error);
     throw new Error("Error al registrar la notificación");
+  }
+};
+export const firmarNotificacion = async (id: string, codigo: string) => {
+  try {
+    const datos = await obtenerStore();
+    if (!datos?.token) {
+      throw new Error("No se pudieron obtener los datos del SecureStore");
+    }
+    const response = await fetch(`${apiUrl}notificaciones/validacion/firmar`, {
+      method: "POST",
+      headers: {
+        Accept: "application/json",
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${datos.token}`,
+      },
+      body: JSON.stringify({
+        token: datos.token,
+        idNotificacion: id,
+        codigo,
+      }),
+    });
+
+    if (response.ok) {
+      return response.json();
+    }
+
+    const message = await response.text();
+    throw new Error(message || "No se pudo firmar la notificación");
+  } catch (error) {
+    console.error("Error al firmar notificación", error);
+    throw error;
+  }
+};
+export const aceptarNotificacion = async (id: string) => {
+  try {
+    const datos = await obtenerStore();
+    if (!datos?.token) {
+      throw new Error("No se pudieron obtener los datos del SecureStore");
+    }
+    const response = await fetch(`${apiUrl}notificaciones/validacion/aceptar`, {
+      method: "POST",
+      headers: {
+        Accept: "application/json",
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${datos.token}`,
+      },
+      body: JSON.stringify({
+        token: datos.token,
+        idNotificacion: id,
+      }),
+    });
+
+    if (response.ok) {
+      return response.json();
+    }
+
+    const message = await response.text();
+    throw new Error(message || "No se pudo aceptar la notificación");
+  } catch (error) {
+    console.error("Error al aceptar notificación", error);
+    throw error;
   }
 };
 export const updatePerfil = async (foto: string) => {

@@ -13,6 +13,7 @@ import "react-native-reanimated";
 import { useColorScheme } from "@/components/useColorScheme";
 import { AuthProvider } from "@/contexts/AuthProvider";
 import { installApiDebugLogger } from "@/utils/apiDebug";
+import { useAutoApplyUpdates } from "@/utils/otaUpdates";
 import * as NavigationBar from 'expo-navigation-bar';
 import { SafeAreaProvider } from "react-native-safe-area-context";
 
@@ -32,6 +33,7 @@ export const unstable_settings = {
 SplashScreen.preventAutoHideAsync();
 
 export default function RootLayout() {
+  useAutoApplyUpdates();
   const [loaded, error] = useFonts({
     SpaceMono: require("../assets/fonts/SpaceMono-Regular.ttf"),
     ...FontAwesome.font,

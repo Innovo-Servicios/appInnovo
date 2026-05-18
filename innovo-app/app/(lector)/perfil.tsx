@@ -15,11 +15,13 @@ import {
   Camera,
   CreditCard,
   FileText,
+  LogOut,
   Mail,
   UserCircle,
   UserRound,
 } from "lucide-react-native";
 import { getPerfil, updatePerfil } from "@/api/trabajador";
+import { useAuth } from "@/contexts/AuthProvider";
 import type { DatoPerfil, Documento } from "@/types/interfaces";
 import { AppButton, AppHeader, Badge, Card, EmptyState, InfoRow, Screen } from "@/components/ui";
 import { colors, fontSizes, radius, shadows, spacing } from "@/constants/theme";
@@ -44,6 +46,7 @@ const buildProfileUrl = (perfil?: string) => {
 };
 
 export default function PerfilScreen() {
+  const { logout } = useAuth();
   const [datosPerfil, setDatosPerfil] = useState<DatoPerfil | null>(null);
   const [imageURL, setImageURL] = useState("");
   const [isRefreshingPhoto, setRefreshingPhoto] = useState(false);
@@ -91,6 +94,24 @@ export default function PerfilScreen() {
   const handleOpenURL = (url: string) => {
     Linking.openURL(url).catch((err) =>
       console.error("Error al abrir el URL:", err)
+    );
+  };
+
+  const handleLogout = () => {
+    Alert.alert(
+      "Cerrar sesión",
+      "¿Deseas salir de tu cuenta?",
+      [
+        { text: "Cancelar", style: "cancel" },
+        {
+          text: "Cerrar sesión",
+          style: "destructive",
+          onPress: () => {
+            void logout();
+          },
+        },
+      ],
+      { cancelable: true }
     );
   };
 
@@ -211,8 +232,15 @@ export default function PerfilScreen() {
           label="Cargo"
           value={getCargoLabel(datosPerfil?.cargo)}
           icon={<BriefcaseBusiness size={18} color={colors.brand} />}
-          last
         />
+        <View style={styles.logoutAction}>
+          <AppButton
+            title="Cerrar sesión"
+            icon={<LogOut size={20} color={colors.danger} />}
+            variant="danger"
+            onPress={handleLogout}
+          />
+        </View>
       </Card>
 
       <AppButton
@@ -288,6 +316,9 @@ const styles = StyleSheet.create({
   },
   documentsCard: {
     gap: spacing.sm,
+  },
+  logoutAction: {
+    marginTop: spacing.md,
   },
   documentGroup: {
     gap: spacing.sm,

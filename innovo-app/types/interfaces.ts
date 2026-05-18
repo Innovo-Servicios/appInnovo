@@ -10,10 +10,28 @@ export interface Ate {
   lng: number | null;
   numeroMedidor: number | null;
   fotoUri: string | null;
+  comentarioTrabajador?: string | null;
+  Lecturacorrecta?: number | null;
 }
 export interface TipoNovedad {
   _id: string;
   value: string;
+}
+export type NotificacionValidacionEstado =
+  | "pendiente"
+  | "firmado"
+  | "aceptado"
+  | "vencido"
+  | "bloqueado";
+export interface NotificacionValidacion {
+  required: boolean;
+  estado?: NotificacionValidacionEstado | null;
+  expiresAt?: string | null;
+  firmadoAt?: string | null;
+  aceptadoAt?: string | null;
+  intentos?: number;
+  attemptsRemaining?: number;
+  codigo?: string | null;
 }
 export interface Notificacion {
   id: string;
@@ -24,6 +42,7 @@ export interface Notificacion {
   fecha: string;
   url: string | null;
   estado: boolean;
+  validacion?: NotificacionValidacion;
 }
 export type NotificacionesRange = "today" | "older";
 export interface NotificacionesPageRequest {
