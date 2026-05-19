@@ -42,6 +42,8 @@ export interface Notificacion {
   fecha: string;
   url: string | null;
   estado: boolean;
+  archivoMimeType?: string | null;
+  archivoEsImagen?: boolean;
   validacion?: NotificacionValidacion;
 }
 export type NotificacionesRange = "today" | "older";

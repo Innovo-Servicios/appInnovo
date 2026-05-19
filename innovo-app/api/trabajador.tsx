@@ -11,6 +11,12 @@ const getMultipartAuthHeaders = (token: string) => ({
   Authorization: `Bearer ${token}`,
 });
 
+const getJsonAuthHeaders = (token: string) => ({
+  Accept: "application/json",
+  "Content-Type": "application/json",
+  Authorization: `Bearer ${token}`,
+});
+
 export async function obtenerStore() {
   try {
     const datos = {
@@ -25,16 +31,13 @@ export async function obtenerStore() {
 export const getAsignaciones = async () => {
   try {
     const datos = await obtenerStore();
-    if (!datos) {
+    if (!datos?.token) {
       throw new Error("No se pudieron obtener los datos del SecureStore");
     }
     const token = datos.token;
     const response = await fetch(`${apiUrl}asignacion/asignacionMes`, {
       method: "POST",
-      headers: {
-        Accept: "application/json",
-        "Content-Type": "application/json",
-      },
+      headers: getJsonAuthHeaders(token),
       body: JSON.stringify({
         token: token,
       }),
@@ -53,15 +56,12 @@ export const getAsignaciones = async () => {
 export const getATE = async (fecha: string) => {
   try {
     const datos = await obtenerStore();
-    if (!datos) {
+    if (!datos?.token) {
       throw new Error("No se pudieron obtener los datos del SecureStore");
     }
     const response = await fetch(`${apiUrl}middleware/obtenerATE`, {
       method: "POST",
-      headers: {
-        Accept: "application/json",
-        "Content-Type": "application/json",
-      },
+      headers: getJsonAuthHeaders(datos.token),
       body: JSON.stringify({
         token: datos.token,
         fecha: fecha,
@@ -81,15 +81,12 @@ export const getATE = async (fecha: string) => {
 export const getTiposNovedad = async () => {
   try {
     const datos = await obtenerStore();
-    if (!datos) {
+    if (!datos?.token) {
       throw new Error("No se pudieron obtener los datos del SecureStore");
     }
     const response = await fetch(`${apiUrl}tipoNovedad/obtenerTipoNovedad`, {
       method: "POST",
-      headers: {
-        Accept: "application/json",
-        "Content-Type": "application/json",
-      },
+      headers: getJsonAuthHeaders(datos.token),
       body: JSON.stringify({
         token: datos.token,
       }),
@@ -195,15 +192,12 @@ export const sendAte = async (
 export const getNotificaciones = async () => {
   try {
     const datos = await obtenerStore();
-    if (!datos) {
+    if (!datos?.token) {
       throw new Error("No se pudieron obtener los datos del SecureStore");
     }
     const response = await fetch(`${apiUrl}notificaciones/getNoti`, {
       method: "POST",
-      headers: {
-        Accept: "application/json",
-        "Content-Type": "application/json",
-      },
+      headers: getJsonAuthHeaders(datos.token),
       body: JSON.stringify({
         token: datos.token,
       }),
@@ -230,10 +224,7 @@ export const getNotificacionesPage = async ({
     }
     const response = await fetch(`${apiUrl}notificaciones/getNotiPage`, {
       method: "POST",
-      headers: {
-        Accept: "application/json",
-        "Content-Type": "application/json",
-      },
+      headers: getJsonAuthHeaders(datos.token),
       body: JSON.stringify({
         token: datos.token,
         range,
@@ -253,15 +244,12 @@ export const getNotificacionesPage = async ({
 export const getPerfil = async () => {
   try {
     const datos = await obtenerStore();
-    if (!datos) {
+    if (!datos?.token) {
       throw new Error("No se pudieron obtener los datos del SecureStore");
     }
     const response = await fetch(`${apiUrl}trabajador/datosApp`, {
       method: "POST",
-      headers: {
-        Accept: "application/json",
-        "Content-Type": "application/json",
-      },
+      headers: getJsonAuthHeaders(datos.token),
       body: JSON.stringify({
         token: datos.token,
       }),
@@ -280,17 +268,14 @@ export const getPerfil = async () => {
 export const deleteNotificacion = async (id: string) => {
   try {
     const datos = await obtenerStore();
-    if (!datos) {
+    if (!datos?.token) {
       throw new Error("No se pudieron obtener los datos del SecureStore");
     }
     const response = await fetch(
       `${apiUrl}notificaciones/eliminarNotificacion`,
       {
         method: "POST",
-        headers: {
-          Accept: "application/json",
-          "Content-Type": "application/json",
-        },
+        headers: getJsonAuthHeaders(datos.token),
         body: JSON.stringify({
           token: datos.token,
           id: id,
@@ -306,17 +291,14 @@ export const deleteNotificacion = async (id: string) => {
 export const updateStateNotificacion = async (id: string) => {
   try {
     const datos = await obtenerStore();
-    if (!datos) {
+    if (!datos?.token) {
       throw new Error("No se pudieron obtener los datos del SecureStore");
     }
     const response = await fetch(
       `${apiUrl}notificacion_vista/registroNotificacion`,
       {
         method: "POST",
-        headers: {
-          Accept: "application/json",
-          "Content-Type": "application/json",
-        },
+        headers: getJsonAuthHeaders(datos.token),
         body: JSON.stringify({
           token: datos.token,
           idNotificacion: id,
@@ -338,9 +320,7 @@ export const firmarNotificacion = async (id: string, codigo: string) => {
     const response = await fetch(`${apiUrl}notificaciones/validacion/firmar`, {
       method: "POST",
       headers: {
-        Accept: "application/json",
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${datos.token}`,
+        ...getJsonAuthHeaders(datos.token),
       },
       body: JSON.stringify({
         token: datos.token,
@@ -369,9 +349,7 @@ export const aceptarNotificacion = async (id: string) => {
     const response = await fetch(`${apiUrl}notificaciones/validacion/aceptar`, {
       method: "POST",
       headers: {
-        Accept: "application/json",
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${datos.token}`,
+        ...getJsonAuthHeaders(datos.token),
       },
       body: JSON.stringify({
         token: datos.token,
@@ -429,9 +407,7 @@ export const getUV = async (ubicacion: { lat: number; lng: number }) => {
     const response = await fetch(`${apiUrl}trabajador/obtenerRegionChile`, {
       method: "POST",
       headers: {
-        Accept: "application/json",
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${datos.token}`,
+        ...getJsonAuthHeaders(datos.token),
       },
       body: JSON.stringify({
         lat: ubicacion.lat,
@@ -463,9 +439,7 @@ export const getDataOffline = async () => {
     const response = await fetch(`${apiUrl}direccion/listadirecciones`, {
       method: "POST",
       headers: {
-        Accept: "application/json",
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${datos.token}`,
+        ...getJsonAuthHeaders(datos.token),
       },
       body: JSON.stringify({
         token: datos.token,

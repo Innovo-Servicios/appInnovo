@@ -44,7 +44,7 @@
           "apiKey": "AIzaSyBVUn0RzCMkN-KhDe03s0Xb3Oygcphvs9k"
         }
       },
-      "versionCode": 23
+      "versionCode": 24
     },
     "web": {
       "bundler": "metro",

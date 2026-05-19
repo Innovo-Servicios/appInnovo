@@ -46,6 +46,17 @@ const getStringValue = (value: unknown): string | null => {
   return null;
 };
 
+const getBooleanValue = (value: unknown): boolean | undefined => {
+  if (typeof value === "boolean") {
+    return value;
+  }
+  if (typeof value === "string") {
+    if (value === "true") return true;
+    if (value === "false") return false;
+  }
+  return undefined;
+};
+
 const normalizeIncomingNotification = (
   payload: Record<string, unknown>,
   fallback?: { title?: string | null; body?: string | null }
@@ -68,6 +79,12 @@ const normalizeIncomingNotification = (
     fecha: getStringValue(payload.fecha) || new Date().toISOString(),
     url: getStringValue(payload.url),
     estado: payload.estado === true || payload.estado === "true",
+    archivoMimeType: getStringValue(payload.archivoMimeType),
+    archivoEsImagen: getBooleanValue(payload.archivoEsImagen),
+    validacion:
+      payload.validacion && typeof payload.validacion === "object"
+        ? (payload.validacion as Notificacion["validacion"])
+        : undefined,
   };
 };
 
@@ -77,7 +94,14 @@ const mergeIncomingNotification = (
 ) => {
   const existing = current.find((notification) => notification.id === incoming.id);
   const mergedItem = existing
-    ? { ...existing, ...incoming, estado: existing.estado || incoming.estado }
+    ? {
+        ...existing,
+        ...incoming,
+        estado: existing.estado || incoming.estado,
+        archivoMimeType: incoming.archivoMimeType ?? existing.archivoMimeType,
+        archivoEsImagen: incoming.archivoEsImagen ?? existing.archivoEsImagen,
+        validacion: incoming.validacion ?? existing.validacion,
+      }
     : incoming;
   const next = existing
     ? current.map((notification) =>

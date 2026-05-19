@@ -2,7 +2,6 @@ import React, { useEffect, useMemo, useState } from "react";
 import {
   Alert,
   Image,
-  Linking,
   ScrollView,
   StyleSheet,
   Text,
@@ -16,29 +15,7 @@ import { aceptarNotificacion, firmarNotificacion } from "@/api/trabajador";
 import { useGlobalContext } from "@/contexts/GlobalContext";
 import { AppButton, AppHeader, Field, IconButton, ModalSheet } from "@/components/ui";
 import { colors, fontSizes, radius, spacing } from "@/constants/theme";
-
-const apiUrl = process.env.EXPO_PUBLIC_API_URL;
-
-const buildAuthenticatedAssetUrl = (
-  assetUrl?: string | null,
-  accessToken?: string | null
-) => {
-  if (!assetUrl) {
-    return "";
-  }
-
-  const cleanAssetUrl = assetUrl.trim();
-  const normalizedUrl = /^https?:\/\//i.test(cleanAssetUrl)
-    ? cleanAssetUrl
-    : `${(apiUrl ?? "").replace(/\/+$/, "")}/${cleanAssetUrl.replace(/^\/+/, "")}`;
-
-  if (!accessToken) {
-    return normalizedUrl;
-  }
-
-  const separator = normalizedUrl.includes("?") ? "&" : "?";
-  return `${normalizedUrl}${separator}access_token=${encodeURIComponent(accessToken)}`;
-};
+import { getAuthenticatedImageSource, openAuthenticatedFile } from "@/utils/authenticatedFiles";
 
 const parseNotification = (notification?: string | string[]) => {
   const raw = Array.isArray(notification) ? notification[0] : notification;
@@ -63,26 +40,34 @@ const ModalNotificacion = () => {
   const [signatureCode, setSignatureCode] = useState("");
   const [isSigning, setSigning] = useState(false);
   const [isAccepting, setAccepting] = useState(false);
+  const [imagePreviewFailed, setImagePreviewFailed] = useState(false);
 
   useEffect(() => {
     setNotification(selectedNotification);
+    setImagePreviewFailed(false);
   }, [selectedNotification]);
 
+  const archivoMimeType = notification?.archivoMimeType?.toLowerCase() || "";
   const isNotificationImage =
-    notification?.url?.endsWith(".jpg") ||
-    notification?.url?.endsWith(".jpeg") ||
-    notification?.url?.endsWith(".png");
+    notification?.archivoEsImagen === true ||
+    archivoMimeType.startsWith("image/") ||
+    notification?.url?.toLowerCase().endsWith(".jpg") ||
+    notification?.url?.toLowerCase().endsWith(".jpeg") ||
+    notification?.url?.toLowerCase().endsWith(".png");
+  const notificationImageSource = getAuthenticatedImageSource(
+    notification?.url,
+    accessToken
+  );
+  const canShowImagePreview =
+    Boolean(notification?.url && isNotificationImage && notificationImageSource) &&
+    !imagePreviewFailed;
+  const canOpenAttachment = Boolean(notification?.url) && (!isNotificationImage || imagePreviewFailed);
 
   useEffect(() => {
     SecureStore.getItemAsync("token")
       .then((token) => setAccessToken(token || ""))
       .catch(() => setAccessToken(""));
   }, []);
-
-  const notificationAssetUrl = buildAuthenticatedAssetUrl(
-    notification?.url,
-    accessToken
-  );
 
   const validation = notification?.validacion;
   const requiresValidation = Boolean(validation?.required);
@@ -179,7 +164,7 @@ const ModalNotificacion = () => {
     }
   };
 
-  const handleOpenURL = (url: string) => {
+  const handleOpenFile = (filePath: string, token: string) => {
     Alert.alert(
       "Aceptar términos",
       "Al abrir el enlace, aceptas la recepción de la información y declaras conocer su contenido.",
@@ -188,8 +173,11 @@ const ModalNotificacion = () => {
         {
           text: "Abrir",
           onPress: () =>
-            Linking.openURL(url).catch((err) =>
-              console.error("Error al abrir el URL:", err)
+            openAuthenticatedFile(filePath, token, notification?.titulo || "notificacion").catch(
+              (error) => {
+                const message = error instanceof Error ? error.message : "No se pudo abrir el archivo.";
+                Alert.alert("Error", message);
+              }
             ),
         },
       ],
@@ -253,13 +241,17 @@ const ModalNotificacion = () => {
           <Text style={styles.contentText}>{notification.contenido}</Text>
         ) : null}
 
-        {notification.url && isNotificationImage ? (
-          <Image source={{ uri: notificationAssetUrl }} style={styles.modalImage} />
+        {canShowImagePreview ? (
+          <Image
+            source={notificationImageSource}
+            style={styles.modalImage}
+            onError={() => setImagePreviewFailed(true)}
+          />
         ) : null}
 
-        {notification.url && !isNotificationImage ? (
+        {canOpenAttachment ? (
           <AppButton
-            title="Abrir enlace"
+            title={imagePreviewFailed ? "Abrir imagen" : "Abrir enlace"}
             icon={<ExternalLink size={20} color={colors.white} />}
             onPress={async () => {
               const token = await SecureStore.getItemAsync("token");
@@ -267,7 +259,7 @@ const ModalNotificacion = () => {
                 Alert.alert("Sesión expirada", "Vuelve a iniciar sesión para abrir el documento.");
                 return;
               }
-              handleOpenURL(buildAuthenticatedAssetUrl(notification.url || "", token));
+              handleOpenFile(notification.url || "", token);
             }}
           />
         ) : null}

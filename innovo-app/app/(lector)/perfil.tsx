@@ -1,7 +1,6 @@
 import { useEffect, useState } from "react";
 import {
   Alert,
-  Linking,
   Pressable,
   StyleSheet,
   Text,
@@ -25,8 +24,11 @@ import { useAuth } from "@/contexts/AuthProvider";
 import type { DatoPerfil, Documento } from "@/types/interfaces";
 import { AppButton, AppHeader, Badge, Card, EmptyState, InfoRow, Screen } from "@/components/ui";
 import { colors, fontSizes, radius, shadows, spacing } from "@/constants/theme";
-
-const apiUrl = process.env.EXPO_PUBLIC_API_URL;
+import {
+  buildApiFileUrl,
+  getAuthenticatedImageSource,
+  openAuthenticatedFile,
+} from "@/utils/authenticatedFiles";
 
 const getCargoLabel = (cargo?: DatoPerfil["cargo"]) => {
   if (cargo === "administracion") return "Administración";
@@ -36,25 +38,19 @@ const getCargoLabel = (cargo?: DatoPerfil["cargo"]) => {
   return cargo || "-";
 };
 
-const buildProfileUrl = (perfil?: string) => {
-  if (!perfil || !apiUrl) {
-    return "";
-  }
-
-  const [, path] = perfil.split("/IMG_PERFILES");
-  return path ? `${apiUrl}IMG_PERFILES${path}` : perfil;
-};
-
 export default function PerfilScreen() {
   const { logout } = useAuth();
   const [datosPerfil, setDatosPerfil] = useState<DatoPerfil | null>(null);
   const [imageURL, setImageURL] = useState("");
+  const [accessToken, setAccessToken] = useState("");
   const [isRefreshingPhoto, setRefreshingPhoto] = useState(false);
 
   const refreshPerfil = async () => {
+    const token = await SecureStore.getItemAsync("token");
     const data = await getPerfil();
+    setAccessToken(token || "");
     setDatosPerfil(data);
-    setImageURL(buildProfileUrl(data.perfil));
+    setImageURL(buildApiFileUrl(data.perfil));
   };
 
   const pickImageAsync = async () => {
@@ -90,12 +86,6 @@ export default function PerfilScreen() {
       Alert.alert("Error", "No se pudo cargar el perfil.");
     });
   }, []);
-
-  const handleOpenURL = (url: string) => {
-    Linking.openURL(url).catch((err) =>
-      console.error("Error al abrir el URL:", err)
-    );
-  };
 
   const handleLogout = () => {
     Alert.alert(
@@ -154,7 +144,10 @@ export default function PerfilScreen() {
                   Alert.alert("Sesión expirada", "Vuelve a iniciar sesión para abrir el documento.");
                   return;
                 }
-                handleOpenURL(`${apiUrl}${doc.url}?access_token=${encodeURIComponent(token)}`);
+                openAuthenticatedFile(doc.url, token, doc.tipo.value).catch((error) => {
+                  const message = error instanceof Error ? error.message : "No se pudo abrir el documento.";
+                  Alert.alert("Error", message);
+                });
               }}
             >
               <View style={styles.documentIcon}>
@@ -189,7 +182,7 @@ export default function PerfilScreen() {
           {datosPerfil?.perfil && imageURL ? (
             <Image
               style={styles.profileImage}
-              source={imageURL}
+              source={getAuthenticatedImageSource(imageURL, accessToken)}
               contentFit="cover"
               transition={350}
               cachePolicy="disk"
